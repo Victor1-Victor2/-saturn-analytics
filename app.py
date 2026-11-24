@@ -10,17 +10,20 @@ import streamlit as st
 
 st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
- .block-container{max-width:100%;padding:2.5rem 1rem .5rem}
-.stApp{background:#f7f9fc}h1,h2,h3{color:#12385b}
-[data-testid="stVerticalBlock"]{gap:.35rem}
-.hero{background:#103454;color:white;padding:8px 14px;border-radius:8px;margin-bottom:2px}
-.hero h1{color:white;font-size:1.15rem;margin:0}.hero p{display:none}
-.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:3px 0 5px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(32px,auto));gap:3px;min-width:0}.kpi-section{color:#12385b;font-size:.75rem;font-weight:750;border-bottom:1px solid #1874b9;padding-bottom:2px}
-.kpi{background:#e9f2fb;border-radius:5px;padding:3px 6px;min-width:0}
-.kpi .lbl{color:#526c83;font-size:.65rem;line-height:1.15}.kpi .val{color:#12385b;font-size:.95rem;font-weight:750;line-height:1.2;overflow-wrap:anywhere}
+ .block-container{max-width:100%;padding:3.6rem 1.25rem .6rem}
+.stApp{background:#f4f7fb}h1,h2,h3{color:#12385b}
+[data-testid="stVerticalBlock"]{gap:.55rem}
+.hero{background:#103454;color:white;padding:12px 18px;border-radius:9px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hero-brand{font-size:1.3rem;font-weight:750}.hero-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.hero-project{font-size:1.5rem;font-weight:800}.hero-date{font-size:.85rem;color:#dceaf6}
+.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:5px 0 0}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(39px,auto));gap:5px;min-width:0}.kpi-section{color:#12385b;font-size:.86rem;font-weight:750;border-bottom:2px solid #1874b9;padding:4px 0}
+.kpi{background:#e7f0fa;border-radius:6px;padding:5px 8px;min-width:0}
+.kpi .lbl{color:#526c83;font-size:.76rem;line-height:1.2}.kpi .val{color:#12385b;font-size:1.13rem;font-weight:750;line-height:1.2;overflow-wrap:anywhere}
+[data-testid="stPlotlyChart"]{background:white;border-radius:8px;padding:5px;border:1px solid #dce5ef}
+[data-testid="stCaptionContainer"]{font-size:.75rem}
+@media(max-height:800px) and (min-width:1001px){.kpi-column{grid-template-rows:repeat(6,minmax(32px,auto));gap:3px}.kpi{padding:3px 6px}.kpi .val{font-size:1rem}.kpi .lbl{font-size:.7rem}}
 @media(max-width:1000px){.kpi-board{grid-template-columns:1fr}.kpis{gap:8px}}
-@media(max-width:550px){.block-container{padding:1rem .5rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .val{font-size:1rem}}
+@media(max-width:550px){.block-container{padding:3rem .5rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-meta{gap:8px}}
 </style>''',unsafe_allow_html=True)
 
 import os, hmac, html
@@ -69,7 +72,7 @@ project=sel1.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x
 choices=[p for p in files if p.name.split('_')[1]==project][::-1]
 selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-st.markdown(f'<div class="hero"><h1>SATURN Analytics · V1.4.2 <span style="float:right">P{html.escape(project)} · {html.escape(capture)}</span></h1></div>',unsafe_allow_html=True)
+st.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.3</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -88,6 +91,8 @@ for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS'
     for offset in range(start,start+24,6):
         cards=[]
         for label,val in kpis[offset:offset+6]:
+            if label[:3] not in {"1.1", "5.1", "5.4", "3.5", "6.1"} and val.lstrip("-").isdigit():
+                val = f"{int(val):,}".replace(",", ".")
             cards.append(f'<div class="kpi"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
         columns.append('<div class="kpi-column">'+''.join(cards)+'</div>')
     sections.append(f'<section><div class="kpi-section">{html.escape(heading)}</div><div class="kpis">'+''.join(columns)+'</div></section>')
@@ -118,17 +123,17 @@ if not programs: programs={'Sense producció':0}
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
 
-def bar_chart(title, labels, values, unit='palets', height=150, sparse=1):
+def bar_chart(title, labels, values, unit='palets', height=205, sparse=1):
     fig=go.Figure()
     fig.add_bar(x=labels,y=values,marker_color=BLUE,marker_line_width=0,
                 hovertemplate='<b>%{x}</b><br>%{y:,.0f} '+unit+'<extra></extra>')
     upper=max(values or [0])
-    fig.update_layout(title=dict(text=title,font=dict(size=12,color=DARK)),
+    fig.update_layout(title=dict(text=title,font=dict(size=14,color=DARK)),
         height=height,margin=dict(l=8,r=8,t=27,b=25),
         paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
         bargap=.22,showlegend=False,hovermode='closest',
         dragmode=False,clickmode='none',transition=dict(duration=0),
-        font=dict(family='Arial, sans-serif',size=9,color='#536c80'),
+        font=dict(family='Arial, sans-serif',size=11,color='#536c80'),
         yaxis=dict(fixedrange=True,range=[0,max(1,upper*1.15)],rangemode='tozero',
                    tickformat=',.0f',gridcolor='#e1e9f2',zerolinecolor='#a7b8c8',
                    title=None),
@@ -142,7 +147,7 @@ def summary(vals,interval):
     avg=sum(nonzero)/len(nonzero) if nonzero else 0
     st.caption(f'Total {fmt(sum(vals))} · Màx. {fmt(max(vals))} · Mitjana {avg:.1f}')
 
-view=st.radio('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],horizontal=True,label_visibility='collapsed')
+view=st.segmented_control('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],default='Producció · hores / dies / mesos',label_visibility='collapsed') or 'Producció'
 if view.startswith('Producció'):
     tab_h,tab_d,tab_m=st.columns(3)
     with tab_h:
@@ -172,7 +177,7 @@ else:
                         line=dict(color='#ffffff',width=2)),
             textinfo='percent',textposition='inside',pull=0,rotation=0,
             hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
-        fig.update_layout(height=150,title=dict(text="Producció per programa",font=dict(size=12)),margin=dict(l=8,r=8,t=27,b=5),
+        fig.update_layout(height=205,title=dict(text="Producció per programa",font=dict(size=14)),margin=dict(l=8,r=8,t=27,b=5),
             paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
             dragmode=False,clickmode='none',transition=dict(duration=0),
             showlegend=False,
