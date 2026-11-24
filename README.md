@@ -1,21 +1,8 @@
-# SATURN Analytics — Demo V1.2
+# SATURN Analytics V1.4 MASTER
+Puja els fitxers del ZIP a l'arrel del repositori. A Streamlit Community Cloud, obre Settings > Secrets i configura:
 
-Demostració pública amb dades **100% sintètiques**. No connecta a PLC ni accepta CSV reals. No mostra noms de clients ni marques d’empresa.
+```toml
+MASTER_PASSWORD = "tria-una-contrasenya-llarga-i-unica"
+```
 
-## Novetats
-- Gràfics amb eix vertical des de zero, etiquetes llegibles i informació en passar el cursor.
-- Pestanyes per a 24 hores, 30 dies, 12 mesos, anys i canvis de bobina.
-- Gràfic circular tipus donut amb els programes més importants, percentatges i totals.
-- Resums per interval i disseny adaptable al mòbil.
-- 48 KPI de demostració, sense canviar els valors de la demo anterior.
-
-## Publicació
-Substitueix `app.py`, `requirements.txt`, `README.md` i `.gitignore` al repositori de GitHub. Streamlit Community Cloud tornarà a desplegar l’aplicació automàticament.
-
-## Execució local
-`pip install -r requirements.txt`
-
-`streamlit run app.py`
-
-
-V1.2.1: eixos bloquejats, zoom i arrossegament desactivats, donut fix sense llegenda interactiva. Es mantenen les dades fictícies i els KPI.
+No publiquis la contrasenya a GitHub. La consulta és pública. Obre MASTER, entra i puja CSV. Es guarden temporalment al servidor, no a GitHub. Conserva els originals. Les captures antigues de data/ no es llegeixen. Elimina-les de GitHub si no les vols publicar (l'historial Git pot conservar còpies). El lector requereix el format de la V1.3. Els gràfics i KPI mantenen els càlculs anteriors, pendents de contrast amb Windows. Es netegen camps identificatius coneguts, no es garanteix anonimització de text arbitrari.

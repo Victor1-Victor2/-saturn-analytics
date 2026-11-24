@@ -1,65 +1,114 @@
-"""SATURN Analytics: demostració pública amb dades 100% sintètiques.
-No llegeix fitxers reals, no desa dades i no exposa cap funció de pujada.
-"""
 import math
-from datetime import date, timedelta
+from datetime import datetime
+from pathlib import Path
+import csv
+from historics_validats import increments_validats, resum_produccio_mensual
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
-st.set_page_config(page_title='SATURN Analytics · Demo', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
+st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
 .block-container{max-width:1250px;padding-top:1.5rem;padding-bottom:2rem}
 .stApp{background:#f7f9fc}h1,h2,h3{color:#12385b}
 .hero{background:#103454;color:white;padding:24px;border-radius:14px;margin-bottom:16px}
 .hero h1{color:white;font-size:1.65rem;margin:0}.hero p{color:#d2e3f2;margin:5px 0 0}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0 20px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin:12px 0 30px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(92px,auto));gap:7px;min-width:0}.kpi-section{margin-top:24px;color:#12385b;font-size:1rem;font-weight:750;border-bottom:2px solid #1874b9;padding-bottom:8px}
 .kpi{background:#e9f2fb;border-radius:12px;padding:15px;min-width:0}
 .kpi .lbl{color:#526c83;font-size:.8rem}.kpi .val{color:#12385b;font-size:1.5rem;font-weight:750;overflow-wrap:anywhere}
 @media(max-width:850px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:420px){.kpis{grid-template-columns:1fr 1fr;gap:8px}.kpi{padding:10px}.kpi .val{font-size:1.15rem}.hero{padding:16px}}
+@media(max-width:420px){.kpis{grid-template-columns:1fr 1fr;gap:14px}.kpi-column{gap:6px;grid-template-rows:repeat(6,minmax(82px,auto))}.kpi{padding:10px}.kpi .val{font-size:1.15rem}.hero{padding:16px}}
 </style>''',unsafe_allow_html=True)
-st.markdown('<div class="hero"><h1>SATURN Analytics WEB · V1.2.1</h1><p>Demostració pública · dades fictícies · sense connexió PLC</p></div>',unsafe_allow_html=True)
-st.warning('DEMO: totes les xifres, projectes i dates d’aquesta pàgina són inventats. No hi ha dades de clients ni captures reals.')
-projects=['P1001','P1002','P1003']
-project=st.selectbox('Número de projecte (fictici)',projects)
-idx=projects.index(project)
-base=24500+idx*10500
-kpis=[
- ('1.1 Projecte',project),('1.2 OEE sr',f'{88+idx}%'),('1.3 Availability',f'{91+idx}%'),('1.4 Quality','98%'),('1.5 Cadència',f'{17+idx}'),('1.6 OEE',f'{83+idx}%'),
- ('2.1 Palets totals · DB4000',f'{base:,}'.replace(',','.')),('2.2 Pallets/hour LP',str(75+idx*4)),('2.3 Average P/H',str(61+idx*3)),('2.4 Palets dia',str(175+idx*15)),('2.5 Palets mes',str(3200+idx*230)),('2.6 Prog +1000','0'),
- ('3.1 Voltes totals',f'{base*14:,}'.replace(',','.')),('3.2 Wraps LP','14'),('3.3 Average V/P','14'),('3.4 Height detected','540'),('3.5 Main Prog','1'),('3.6 Palets Main','120'),
- ('4.1 Hores encesa','2840'),('4.2 Hores Auto','2570'),('4.3 Hores treball','1900'),('4.4 Hores alarma','8'),('4.5 Hores No Auto','262'),('4.6 Changes <3','2'),
- ('5.1 Registre','2026-01-15'),('5.2 Sector','No publicat'),('5.3 V/P Reg','14'),('5.4 Tipus','No publicat'),('5.5 Max. T. Value','55'),('5.6 Preestiro','150'),
- ('6.1 Program','1'),('6.2 Single / Double','0'),('6.3 Press plate','0'),('6.4 Cover','0'),('6.5 Wrapping RPM','25'),('6.6 Wrapping tension','50'),
- ('7.1 Pallets 24CB','210'),('7.2 Mitjana 24CB','11'),('7.3 Mitjana canvis','12'),('7.4 3<Changes<45','15'),('7.5 45<Changes<80','1'),('7.6 80>Changes','0'),
- ('8.1 Total emergències','8'),('8.2 Pallets per alarma','3062'),('8.3 Barrera entrada','3'),('8.4 Barrera sortida','2'),('8.5 PLC On/Off','4'),('8.6 Enfardat >180s','0')]
+st.markdown('<div class="hero"><h1>SATURN Analytics WEB · V1.4 MASTER</h1><p>Captures CSV · dades reals · sense connexió PLC</p></div>',unsafe_allow_html=True)
+import os, hmac
+from storage import save, PATTERN
+folder=Path(__file__).parent/'uploads'
+folder.mkdir(exist_ok=True)
+try:
+    secret=st.secrets.get('MASTER_PASSWORD','')
+except Exception:
+    secret=os.environ.get('MASTER_PASSWORD','')
+with st.expander('MASTER · Administració'):
+    if not st.session_state.get('master',False):
+        with st.form('master_login'):
+            password=st.text_input('Contrasenya MASTER',type='password')
+            login=st.form_submit_button('Entrar')
+        if login:
+            if secret and hmac.compare_digest(password.encode('utf-8'),str(secret).encode('utf-8')):
+                st.session_state.master=True
+                st.rerun()
+            else: st.error('Accés denegat o MASTER no configurat.')
+    else:
+        if st.button('Tancar sessió MASTER'):
+            st.session_state.master=False
+            st.rerun()
+        st.warning('Emmagatzematge temporal: les captures poden desaparèixer quan es reinicia el servidor. La consulta és pública.')
+        uploaded=st.file_uploader('Pujar CSV',type=['csv'],accept_multiple_files=True)
+        if st.button('Guardar captures',disabled=not uploaded):
+            for f in uploaded:
+                try:
+                    if save(folder,f.name,f.getvalue()): st.success('Captura incorporada')
+                    else: st.info('Captura duplicada: no substituïda')
+                except (ValueError,UnicodeError,KeyError,TypeError,OverflowError): st.error('CSV rebutjat: format o dades incompatibles')
+        existing=sorted(p.name for p in folder.glob('datos_*.csv') if PATTERN.fullmatch(p.name))
+        remove=st.multiselect('Captures per eliminar',existing)
+        confirm=st.checkbox('Confirmo que vull eliminar les captures seleccionades')
+        if st.button('Eliminar captures',disabled=not (remove and confirm)):
+            for name in remove:
+                if name in existing: (folder/name).unlink(missing_ok=True)
+            st.rerun()
+files=sorted(p for p in folder.glob('datos_*.csv') if PATTERN.fullmatch(p.name))
+if not files:
+    st.warning('No hi ha captures CSV.'); st.stop()
+projects=sorted({p.name.split('_')[1] for p in files},key=int)
+project=st.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x)
+choices=[p for p in files if p.name.split('_')[1]==project][::-1]
+selected=st.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
+with selected.open(encoding='utf-8-sig',newline='') as f:
+    rows=list(csv.DictReader(f))
+byname={r['Nombre']:r['Valor'] for r in rows}
+byindex={int(r['Índice']):r['Valor'] for r in rows if r['Índice'].isdigit()}
+def num(i): return int(float(byindex[i]))
+labels=['1.1 Projecte', '1.2 OEE sr', '1.3 Availability', '1.4 Quality', '1.5 Cadència', '1.6 OEE', '2.1 Palets totals · DB4000', '2.2 Pallets/hour LP', '2.3 Average P/H', '2.4 Palets dia', '2.5 Palets mes', '2.6 Prog +1000', '3.1 Voltes totals', '3.2 Wraps LP', '3.3 Average V/P', '3.4 Height detected', '3.5 Main Prog', '3.6 Palets Main', '4.1 Hores encesa', '4.2 Hores Auto', '4.3 Hores treball', '4.4 Hores alarma', '4.5 Hores No Auto', '4.6 Changes <3', '5.1 Registre', '5.2 Sector', '5.3 V/P Reg', '5.4 Tipus', '5.5 Max. T. Value', '5.6 Preestiro', '6.1 Program', '6.2 Single / Double', '6.3 Press plate', '6.4 Cover', '6.5 Wrapping RPM', '6.6 Wrapping tension', '7.1 Pallets 24CB', '7.2 Mitjana 24CB', '7.3 Mitjana canvis', '7.4 3<Changes<45', '7.5 45<Changes<80', '7.6 80>Changes', '8.1 Total emergències', '8.2 Pallets per alarma', '8.3 Barrera entrada', '8.4 Barrera sortida', '8.5 PLC On/Off', '8.6 Enfardat >180s']
+keys=['Proyecto', 'OEE sr', 'Disponibilitat', 'Calidad', 'Cadencia', 'OEE', 'Palet Totales', 'Palet Hora LP', 'Average P/H', 'Palets Día', 'Palets Mes', 'Prog + 1000', 'Vueltas Totales', 'Vueltas LP', 'Average V/P', 'Height Detected', 'Main Prog', 'Palets Main', 'Horas Alimentada', 'Horas Auto', 'Horas Trabajo', 'Horas Alarma', 'Horas No Auto', 'Cambios < 3', 'Registro', 'Sector', 'V/P Reg', 'Tipo', 'Max. T. Value', 'Preestiro', 'Programa', 'Simple0/Doble1', 'Pisón', 'Cover', 'Rpm Enfardado', 'Tensión Enfardado', 'Palets 24CB', 'Average 24CB', 'Average Cambios', '3<Cambios<45', '45<Cambios<80', '80 > Cambios', 'Alarma 4', 'Palets/Alarma', 'Alarma 1', 'Alarma 2', 'Alarma 3', 'Alarma 5']
+kpis=[(label,byname.get('KPI_'+key,'—')) for label,key in zip(labels,keys)]
+kpis[0]=(labels[0],'P'+project)
+kpis[6]=(labels[6],byindex[220])
+kpis[25]=(labels[25],'No publicat')
 import html
 st.subheader('Indicadors de rendiment')
-st.caption('48 KPI de demostració · valors sintètics')
-parts=[]
-for label,val in kpis:
-    parts.append(f'<div class="kpi"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
-st.markdown('<div class="kpis">'+''.join(parts)+'</div>',unsafe_allow_html=True)
+st.caption('48 KPI · valors exportats per Windows (sector ocult)')
+for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS')]:
+    columns=[]
+    for offset in range(start,start+24,6):
+        cards=[]
+        for label,val in kpis[offset:offset+6]:
+            cards.append(f'<div class="kpi"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
+        columns.append('<div class="kpi-column">'+''.join(cards)+'</div>')
+    st.markdown(f'<div class="kpi-section">{html.escape(heading)}</div><div class="kpis">'+''.join(columns)+'</div>',unsafe_allow_html=True)
 
-# Dades exclusivament sintètiques per provar el disseny públic.
+# Dades de captures CSV.
 BLUE='#1874b9'
 DARK='#12385b'
 LIGHT='#e7eff8'
 CHART_CONFIG = dict(displayModeBar=False, scrollZoom=False, doubleClick=False, showTips=False, responsive=True)
 
 
-hours=[max(0,round(8+7*math.sin((i+idx)*.64)+4*math.sin(i*1.9))) for i in range(24)]
-days=[max(0,round(160+50*math.sin(i*.53+idx)+25*math.cos(i*.9))) for i in range(30)]
-months=[max(0,round(2900+700*math.sin(i*.8+idx))) for i in range(12)]
-rolls=[max(0,round(12+7*math.sin(i*.71+idx))) for i in range(24)]
-annual=[max(0,round(base*(i+1)/10)) for i in range(10)]
-
-# Distribució de programes sintètica, diferent per projecte.
-programs={'Programa 1': 620+idx*110, 'Programa 3': 265+idx*35,
-          'Programa 5': 130+idx*20, 'Programa 0': 58+idx*8,
-          'Altres': 42+idx*6}
+db306=[num(i) for i in range(105,220)]
+hours,ha= increments_validats(db306[1:25])
+days,da= increments_validats(db306[59:90])
+monthly=resum_produccio_mensual(db306)
+months=monthly['increments'] if monthly else [0]*12
+rolls,ra=increments_validats(db306[90:114])
+raw=db306[49:59]; pivot=max(i for i,v in enumerate(raw) if v==max(raw))
+annual=raw[pivot+1:]+raw[:pivot+1]
+year=int(selected.stem.split('_')[2][:4])
+all_programs=sorted([(f'Programa {i}',num(273+i)) for i in range(20)],key=lambda x:-x[1])
+programs=dict((k,v) for k,v in all_programs[:4] if v>0)
+other=sum(v for k,v in all_programs[4:])
+if other: programs['Altres']=other
+if not programs: programs={'Sense producció':0}
 
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
@@ -93,19 +142,19 @@ def summary(vals,interval):
 st.subheader('Anàlisi de producció')
 st.caption('Escales des de zero · valors per interval · passa el cursor o toca les barres per consultar-les')
 
-tab_h,tab_d,tab_m,tab_y,tab_r=st.tabs(['24 hores','30 dies','12 mesos','Anys','Canvis de bobina'])
+tab_h,tab_d,tab_m,tab_y,tab_r=st.tabs(['24 hores','Dies del mes','12 mesos','Anys','Canvis de bobina'])
 with tab_h:
     bar_chart('Producció per hora',[f'{i:02d} h' for i in range(24)],hours,sparse=3)
     summary(hours,'hora')
 with tab_d:
-    bar_chart('Producció per dia',[f'Dia {i+1}' for i in range(30)],days,sparse=4)
+    bar_chart('Producció per dia',[f'Dia {i+1}' for i in range(len(days))],days,sparse=4)
     summary(days,'dia')
 with tab_m:
     bar_chart('Producció mensual',[str(i+1) for i in range(12)],months,sparse=1)
     summary(months,'mes')
 with tab_y:
-    bar_chart('Producció acumulada anual',[str(y) for y in range(2017,2027)],annual,unit='palets acumulats',sparse=1)
-    st.caption('Dades anuals fictícies ordenades cronològicament, amb l’any actual a la dreta.')
+    bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,unit='palets acumulats',sparse=1)
+    st.caption('Acumulats circulars: màxim a la dreta, assignat a l’any de captura.')
 with tab_r:
     bar_chart('Palets entre canvis de bobina',[str(i+1) for i in range(24)],rolls,sparse=3)
     summary(rolls,'canvi')
@@ -132,8 +181,7 @@ with right:
     st.markdown('**Programes principals**')
     total=sum(programs.values())
     for name,value in sorted(programs.items(),key=lambda x:-x[1]):
-        st.markdown(f'**{name}** · {fmt(value)} palets ({value/total:.1%})')
-        st.progress(value/total)
+        st.markdown(f'**{name}** · {fmt(value)} palets ({(value/total if total else 0):.1%})')
+        st.progress((value/total if total else 0))
 
-st.info('Versió de demostració: totes les dades i els projectes són ficticis. '
-        'Els CSV reals i la validació dels càlculs es tractaran en una versió posterior.')
+st.caption('Captures històriques: no són dades en directe. Els increments amb base absent o lectures antigues es tracten segons el lector de Windows; cal validar els gràfics amb els informes originals.')
