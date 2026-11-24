@@ -10,18 +10,20 @@ import streamlit as st
 
 st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
-.block-container{max-width:1250px;padding-top:1.5rem;padding-bottom:2rem}
+ .block-container{max-width:100%;padding:2.5rem 1rem .5rem}
 .stApp{background:#f7f9fc}h1,h2,h3{color:#12385b}
-.hero{background:#103454;color:white;padding:24px;border-radius:14px;margin-bottom:16px}
-.hero h1{color:white;font-size:1.65rem;margin:0}.hero p{color:#d2e3f2;margin:5px 0 0}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin:12px 0 30px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(92px,auto));gap:7px;min-width:0}.kpi-section{margin-top:24px;color:#12385b;font-size:1rem;font-weight:750;border-bottom:2px solid #1874b9;padding-bottom:8px}
-.kpi{background:#e9f2fb;border-radius:12px;padding:15px;min-width:0}
-.kpi .lbl{color:#526c83;font-size:.8rem}.kpi .val{color:#12385b;font-size:1.5rem;font-weight:750;overflow-wrap:anywhere}
-@media(max-width:850px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:420px){.kpis{grid-template-columns:1fr 1fr;gap:14px}.kpi-column{gap:6px;grid-template-rows:repeat(6,minmax(82px,auto))}.kpi{padding:10px}.kpi .val{font-size:1.15rem}.hero{padding:16px}}
+[data-testid="stVerticalBlock"]{gap:.35rem}
+.hero{background:#103454;color:white;padding:8px 14px;border-radius:8px;margin-bottom:2px}
+.hero h1{color:white;font-size:1.15rem;margin:0}.hero p{display:none}
+.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:3px 0 5px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(32px,auto));gap:3px;min-width:0}.kpi-section{color:#12385b;font-size:.75rem;font-weight:750;border-bottom:1px solid #1874b9;padding-bottom:2px}
+.kpi{background:#e9f2fb;border-radius:5px;padding:3px 6px;min-width:0}
+.kpi .lbl{color:#526c83;font-size:.65rem;line-height:1.15}.kpi .val{color:#12385b;font-size:.95rem;font-weight:750;line-height:1.2;overflow-wrap:anywhere}
+@media(max-width:1000px){.kpi-board{grid-template-columns:1fr}.kpis{gap:8px}}
+@media(max-width:550px){.block-container{padding:1rem .5rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .val{font-size:1rem}}
 </style>''',unsafe_allow_html=True)
-st.markdown('<div class="hero"><h1>SATURN Analytics WEB · V1.4 MASTER</h1><p>Captures CSV · dades reals · sense connexió PLC</p></div>',unsafe_allow_html=True)
-import os, hmac
+
+import os, hmac, html
 from storage import save, PATTERN
 folder=Path(__file__).parent/'uploads'
 folder.mkdir(exist_ok=True)
@@ -29,7 +31,7 @@ try:
     secret=st.secrets.get('MASTER_PASSWORD','')
 except Exception:
     secret=os.environ.get('MASTER_PASSWORD','')
-with st.expander('MASTER · Administració'):
+with st.sidebar.expander('MASTER · Administració'):
     if not st.session_state.get('master',False):
         with st.form('master_login'):
             password=st.text_input('Contrasenya MASTER',type='password')
@@ -62,9 +64,12 @@ files=sorted(p for p in folder.glob('datos_*.csv') if PATTERN.fullmatch(p.name))
 if not files:
     st.warning('No hi ha captures CSV.'); st.stop()
 projects=sorted({p.name.split('_')[1] for p in files},key=int)
-project=st.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x)
+sel1=sel2=st.sidebar
+project=sel1.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x)
 choices=[p for p in files if p.name.split('_')[1]==project][::-1]
-selected=st.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
+selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
+capture = selected.stem.split('_',2)[2].replace('_',' · ')
+st.markdown(f'<div class="hero"><h1>SATURN Analytics · V1.4.2 <span style="float:right">P{html.escape(project)} · {html.escape(capture)}</span></h1></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -77,8 +82,7 @@ kpis[0]=(labels[0],'P'+project)
 kpis[6]=(labels[6],byindex[220])
 kpis[25]=(labels[25],'No publicat')
 import html
-st.subheader('Indicadors de rendiment')
-st.caption('48 KPI · valors exportats per Windows (sector ocult)')
+sections=[]
 for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS')]:
     columns=[]
     for offset in range(start,start+24,6):
@@ -86,7 +90,8 @@ for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS'
         for label,val in kpis[offset:offset+6]:
             cards.append(f'<div class="kpi"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
         columns.append('<div class="kpi-column">'+''.join(cards)+'</div>')
-    st.markdown(f'<div class="kpi-section">{html.escape(heading)}</div><div class="kpis">'+''.join(columns)+'</div>',unsafe_allow_html=True)
+    sections.append(f'<section><div class="kpi-section">{html.escape(heading)}</div><div class="kpis">'+''.join(columns)+'</div></section>')
+st.markdown('<div class="kpi-board">'+''.join(sections)+'</div>',unsafe_allow_html=True)
 
 # Dades de captures CSV.
 BLUE='#1874b9'
@@ -113,17 +118,17 @@ if not programs: programs={'Sense producció':0}
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
 
-def bar_chart(title, labels, values, unit='palets', height=300, sparse=1):
+def bar_chart(title, labels, values, unit='palets', height=150, sparse=1):
     fig=go.Figure()
     fig.add_bar(x=labels,y=values,marker_color=BLUE,marker_line_width=0,
                 hovertemplate='<b>%{x}</b><br>%{y:,.0f} '+unit+'<extra></extra>')
     upper=max(values or [0])
-    fig.update_layout(title=dict(text=title,font=dict(size=17,color=DARK)),
-        height=height,margin=dict(l=10,r=12,t=55,b=38),
+    fig.update_layout(title=dict(text=title,font=dict(size=12,color=DARK)),
+        height=height,margin=dict(l=8,r=8,t=27,b=25),
         paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
         bargap=.22,showlegend=False,hovermode='closest',
         dragmode=False,clickmode='none',transition=dict(duration=0),
-        font=dict(family='Arial, sans-serif',size=12,color='#536c80'),
+        font=dict(family='Arial, sans-serif',size=9,color='#536c80'),
         yaxis=dict(fixedrange=True,range=[0,max(1,upper*1.15)],rangemode='tozero',
                    tickformat=',.0f',gridcolor='#e1e9f2',zerolinecolor='#a7b8c8',
                    title=None),
@@ -134,54 +139,46 @@ def bar_chart(title, labels, values, unit='palets', height=300, sparse=1):
 
 def summary(vals,interval):
     nonzero=[x for x in vals if x>0]
-    a,b,c=st.columns(3)
-    a.metric('Total del període',f'{fmt(sum(vals))} palets')
-    b.metric('Màxim per '+interval,f'{fmt(max(vals))} palets')
-    c.metric('Mitjana productiva',f'{sum(nonzero)/len(nonzero):,.1f}' if nonzero else '0')
+    avg=sum(nonzero)/len(nonzero) if nonzero else 0
+    st.caption(f'Total {fmt(sum(vals))} · Màx. {fmt(max(vals))} · Mitjana {avg:.1f}')
 
-st.subheader('Anàlisi de producció')
-st.caption('Escales des de zero · valors per interval · passa el cursor o toca les barres per consultar-les')
-
-tab_h,tab_d,tab_m,tab_y,tab_r=st.tabs(['24 hores','Dies del mes','12 mesos','Anys','Canvis de bobina'])
-with tab_h:
-    bar_chart('Producció per hora',[f'{i:02d} h' for i in range(24)],hours,sparse=3)
-    summary(hours,'hora')
-with tab_d:
-    bar_chart('Producció per dia',[f'Dia {i+1}' for i in range(len(days))],days,sparse=4)
-    summary(days,'dia')
-with tab_m:
-    bar_chart('Producció mensual',[str(i+1) for i in range(12)],months,sparse=1)
-    summary(months,'mes')
-with tab_y:
-    bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,unit='palets acumulats',sparse=1)
-    st.caption('Acumulats circulars: màxim a la dreta, assignat a l’any de captura.')
-with tab_r:
-    bar_chart('Palets entre canvis de bobina',[str(i+1) for i in range(24)],rolls,sparse=3)
-    summary(rolls,'canvi')
-
-st.subheader('Producció per programa')
-left,right=st.columns([1.25,1],gap='large')
-with left:
-    labels=list(programs)
-    vals=list(programs.values())
-    fig=go.Figure(go.Pie(labels=labels,values=vals,hole=.64,
-        sort=False,direction='clockwise',
-        marker=dict(colors=['#166fb1','#4d9bd0','#91bedf','#c4d9eb','#e6edf4'],
-                    line=dict(color='#ffffff',width=2)),
-        textinfo='percent',textposition='inside',pull=0,rotation=0,
-        hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
-    fig.update_layout(height=345,margin=dict(l=12,r=12,t=15,b=10),
-        paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
-        dragmode=False,clickmode='none',transition=dict(duration=0),
-        showlegend=False,
-        annotations=[dict(text=f'<b>{fmt(sum(vals))}</b><br>palets',
-                          x=.5,y=.5,font=dict(size=21,color=DARK),showarrow=False)])
-    st.plotly_chart(fig,use_container_width=True,config=CHART_CONFIG)
-with right:
-    st.markdown('**Programes principals**')
-    total=sum(programs.values())
-    for name,value in sorted(programs.items(),key=lambda x:-x[1]):
-        st.markdown(f'**{name}** · {fmt(value)} palets ({(value/total if total else 0):.1%})')
-        st.progress((value/total if total else 0))
+view=st.radio('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],horizontal=True,label_visibility='collapsed')
+if view.startswith('Producció'):
+    tab_h,tab_d,tab_m=st.columns(3)
+    with tab_h:
+        bar_chart('Producció per hora',[f'{i:02d} h' for i in range(24)],hours,sparse=3)
+        summary(hours,'hora')
+    with tab_d:
+        bar_chart('Producció per dia',[f'Dia {i+1}' for i in range(len(days))],days,sparse=4)
+        summary(days,'dia')
+    with tab_m:
+        bar_chart('Producció mensual',[str(i+1) for i in range(12)],months,sparse=1)
+        summary(months,'mes')
+else:
+    tab_y,tab_r,tab_p=st.columns(3)
+    with tab_y:
+        bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,unit='palets acumulats',sparse=1)
+        st.caption('Acumulats circulars: màxim a la dreta, assignat a l’any de captura.')
+    with tab_r:
+        bar_chart('Palets entre canvis de bobina',[str(i+1) for i in range(24)],rolls,sparse=3)
+        summary(rolls,'canvi')
+    
+    with tab_p:
+        labels=list(programs)
+        vals=list(programs.values())
+        fig=go.Figure(go.Pie(labels=labels,values=vals,hole=.64,
+            sort=False,direction='clockwise',
+            marker=dict(colors=['#166fb1','#4d9bd0','#91bedf','#c4d9eb','#e6edf4'],
+                        line=dict(color='#ffffff',width=2)),
+            textinfo='percent',textposition='inside',pull=0,rotation=0,
+            hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
+        fig.update_layout(height=150,title=dict(text="Producció per programa",font=dict(size=12)),margin=dict(l=8,r=8,t=27,b=5),
+            paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
+            dragmode=False,clickmode='none',transition=dict(duration=0),
+            showlegend=False,
+            annotations=[dict(text=f'<b>{fmt(sum(vals))}</b><br>palets',
+                              x=.5,y=.5,font=dict(size=13,color=DARK),showarrow=False)])
+        st.plotly_chart(fig,use_container_width=True,config=CHART_CONFIG)
+        st.caption(' · '.join(f'{name}: {fmt(value)}' for name,value in programs.items()))
 
 st.caption('Captures històriques: no són dades en directe. Els increments amb base absent o lectures antigues es tracten segons el lector de Windows; cal validar els gràfics amb els informes originals.')
