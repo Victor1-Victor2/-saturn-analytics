@@ -10,20 +10,26 @@ import streamlit as st
 
 st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
- .block-container{max-width:100%;padding:3.6rem 1.25rem .6rem}
-.stApp{background:#f4f7fb}h1,h2,h3{color:#12385b}
+ .block-container{max-width:1800px;padding:3.5rem 1.5rem .7rem}
+.stApp{background:#f0f4f9;color:#173650}h1,h2,h3{color:#173650}
 [data-testid="stVerticalBlock"]{gap:.55rem}
-.hero{background:#103454;color:white;padding:12px 18px;border-radius:9px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.hero-brand{font-size:1.3rem;font-weight:750}.hero-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.hero-project{font-size:1.5rem;font-weight:800}.hero-date{font-size:.85rem;color:#dceaf6}
-.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:5px 0 0}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(39px,auto));gap:5px;min-width:0}.kpi-section{color:#12385b;font-size:.86rem;font-weight:750;border-bottom:2px solid #1874b9;padding:4px 0}
-.kpi{background:#e7f0fa;border-radius:6px;padding:5px 8px;min-width:0}
-.kpi .lbl{color:#526c83;font-size:.76rem;line-height:1.2}.kpi .val{color:#12385b;font-size:1.13rem;font-weight:750;line-height:1.2;overflow-wrap:anywhere}
-[data-testid="stPlotlyChart"]{background:white;border-radius:8px;padding:5px;border:1px solid #dce5ef}
-[data-testid="stCaptionContainer"]{font-size:.75rem}
-@media(max-height:800px) and (min-width:1001px){.kpi-column{grid-template-rows:repeat(6,minmax(32px,auto));gap:3px}.kpi{padding:3px 6px}.kpi .val{font-size:1rem}.kpi .lbl{font-size:.7rem}}
-@media(max-width:1000px){.kpi-board{grid-template-columns:1fr}.kpis{gap:8px}}
-@media(max-width:550px){.block-container{padding:3rem .5rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-meta{gap:8px}}
+.hero{background:linear-gradient(115deg,#173650,#285b80);color:white;padding:13px 22px;border-radius:19px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 5px 16px #17365019}
+.hero-brand{font-size:1.28rem;font-weight:700;letter-spacing:.015em}.hero-meta{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.hero-project{font-size:1.5rem;font-weight:750;background:#ffffff19;border-radius:12px;padding:4px 12px}.hero-date{font-size:.86rem;color:#e0edf8}
+.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:3px 0 6px}
+.kpi-board section{background:#e7eef6;border-radius:19px;padding:10px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(38px,auto));gap:6px;min-width:0}
+.kpi-section{color:#365b78;font-size:.78rem;font-weight:750;letter-spacing:.06em;padding:1px 4px 9px}
+.kpi{background:#fff;border-radius:11px;padding:5px 9px;min-width:0;box-shadow:0 2px 5px #17365009}
+.kpi .lbl{color:#526b80;font-size:.75rem;line-height:1.25}.kpi .val{color:#173650;font-size:1.13rem;font-weight:700;line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.chart-heading{font-weight:750;color:#365b78;font-size:.8rem;letter-spacing:.06em;padding:3px 4px}
+[data-testid="stPlotlyChart"]{background:#fff;border-radius:19px;padding:8px 10px;box-shadow:0 3px 12px #1736500b}
+[data-testid="stCaptionContainer"]{color:#526b80;font-size:.75rem}
+[data-baseweb="select"]>div{border-radius:13px!important;background:white!important;border-color:#dce6ef!important}
+[data-testid="stSegmentedControl"] button{border-radius:12px!important;margin-right:4px}
+[data-testid="stSegmentedControl"] button[aria-checked="true"],[data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:#dbe9f7!important;color:#173650!important;border-color:#b7cde3!important}
+@media(max-height:850px) and (min-width:1001px){.block-container{padding-top:3.25rem}.hero{padding:8px 18px}.kpi-board section{padding:7px}.kpi-column{grid-template-rows:repeat(6,minmax(30px,auto));gap:4px}.kpi{padding:3px 7px}.kpi .val{font-size:1rem}.kpi .lbl{font-size:.7rem}.kpi-section{padding-bottom:5px}}
+@media(max-width:1000px){.kpi-board{grid-template-columns:1fr}}
+@media(max-width:550px){.block-container{padding:3rem .6rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-meta{gap:8px}}
 </style>''',unsafe_allow_html=True)
 
 import os, hmac, html
@@ -67,12 +73,15 @@ files=sorted(p for p in folder.glob('datos_*.csv') if PATTERN.fullmatch(p.name))
 if not files:
     st.warning('No hi ha captures CSV.'); st.stop()
 projects=sorted({p.name.split('_')[1] for p in files},key=int)
-sel1=sel2=st.sidebar
+hero_slot=st.empty()
+sel1,sel2,selection_info=st.columns([1,1.6,2.4],vertical_alignment="bottom")
 project=sel1.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x)
 choices=[p for p in files if p.name.split('_')[1]==project][::-1]
 selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
+with selection_info:
+    st.caption(f'{len(projects)} projectes disponibles · {len(choices)} captures del projecte seleccionat')
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-st.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.3</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
+hero_slot.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.5</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -99,7 +108,7 @@ for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS'
 st.markdown('<div class="kpi-board">'+''.join(sections)+'</div>',unsafe_allow_html=True)
 
 # Dades de captures CSV.
-BLUE='#1874b9'
+BLUE='#548bb9'
 DARK='#12385b'
 LIGHT='#e7eff8'
 CHART_CONFIG = dict(displayModeBar=False, scrollZoom=False, doubleClick=False, showTips=False, responsive=True)
@@ -123,19 +132,19 @@ if not programs: programs={'Sense producció':0}
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
 
-def bar_chart(title, labels, values, unit='palets', height=205, sparse=1):
+def bar_chart(title, labels, values, unit='palets', height=235, sparse=1):
     fig=go.Figure()
     fig.add_bar(x=labels,y=values,marker_color=BLUE,marker_line_width=0,
                 hovertemplate='<b>%{x}</b><br>%{y:,.0f} '+unit+'<extra></extra>')
     upper=max(values or [0])
-    fig.update_layout(title=dict(text=title,font=dict(size=14,color=DARK)),
-        height=height,margin=dict(l=8,r=8,t=27,b=25),
+    fig.update_layout(title=dict(text=title,font=dict(size=16,color=DARK)),
+        height=height,margin=dict(l=8,r=8,t=38,b=30),
         paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
-        bargap=.22,showlegend=False,hovermode='closest',
+        bargap=.27,barcornerradius=5,showlegend=False,hovermode='closest',
         dragmode=False,clickmode='none',transition=dict(duration=0),
-        font=dict(family='Arial, sans-serif',size=11,color='#536c80'),
+        font=dict(family='Arial, sans-serif',size=12,color='#536c80'),
         yaxis=dict(fixedrange=True,range=[0,max(1,upper*1.15)],rangemode='tozero',
-                   tickformat=',.0f',gridcolor='#e1e9f2',zerolinecolor='#a7b8c8',
+                   tickformat=',.0f',gridcolor='#e9eff5',zerolinecolor='#a7b8c8',
                    title=None),
         xaxis=dict(fixedrange=True,type='category',tickmode='array',
                    tickvals=labels[::sparse],ticktext=labels[::sparse],
@@ -147,6 +156,7 @@ def summary(vals,interval):
     avg=sum(nonzero)/len(nonzero) if nonzero else 0
     st.caption(f'Total {fmt(sum(vals))} · Màx. {fmt(max(vals))} · Mitjana {avg:.1f}')
 
+st.markdown('<div class="chart-heading">PRODUCTION ANALYTICS</div>',unsafe_allow_html=True)
 view=st.segmented_control('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],default='Producció · hores / dies / mesos',label_visibility='collapsed') or 'Producció'
 if view.startswith('Producció'):
     tab_h,tab_d,tab_m=st.columns(3)
@@ -173,11 +183,11 @@ else:
         vals=list(programs.values())
         fig=go.Figure(go.Pie(labels=labels,values=vals,hole=.64,
             sort=False,direction='clockwise',
-            marker=dict(colors=['#166fb1','#4d9bd0','#91bedf','#c4d9eb','#e6edf4'],
+            marker=dict(colors=['#487fae','#78a6cb','#a5c5df','#c8dced','#e6edf4'],
                         line=dict(color='#ffffff',width=2)),
             textinfo='percent',textposition='inside',pull=0,rotation=0,
             hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
-        fig.update_layout(height=205,title=dict(text="Producció per programa",font=dict(size=14)),margin=dict(l=8,r=8,t=27,b=5),
+        fig.update_layout(height=235,title=dict(text="Producció per programa",font=dict(size=16,color=DARK)),margin=dict(l=8,r=8,t=38,b=10),
             paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
             dragmode=False,clickmode='none',transition=dict(duration=0),
             showlegend=False,
