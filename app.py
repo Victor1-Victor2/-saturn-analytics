@@ -10,17 +10,17 @@ import streamlit as st
 
 st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
- .block-container{max-width:1800px;padding:3.5rem 1.5rem .7rem}
+ .block-container{max-width:1920px;padding:3.65rem 1rem .5rem}
 .stApp{background:#f0f4f9;color:#173650}h1,h2,h3{color:#173650}
-[data-testid="stVerticalBlock"]{gap:.55rem}
-.hero{background:linear-gradient(115deg,#173650,#285b80);color:white;padding:13px 22px;border-radius:19px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 5px 16px #17365019}
+[data-testid="stVerticalBlock"]{gap:.4rem}
+.hero{background:linear-gradient(115deg,#173650,#285b80);color:white;padding:8px 20px;border-radius:19px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 5px 16px #17365019}
 .hero-brand{font-size:1.28rem;font-weight:700;letter-spacing:.015em}.hero-meta{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.hero-project{font-size:1.5rem;font-weight:750;background:#ffffff19;border-radius:12px;padding:4px 12px}.hero-date{font-size:.86rem;color:#e0edf8}
-.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:3px 0 6px}
-.kpi-board section{background:#e7eef6;border-radius:19px;padding:10px;min-width:0}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(38px,auto));gap:6px;min-width:0}
+.kpi-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:2px 0 4px}
+.kpi-board section{background:#e7eef6;border-radius:19px;padding:8px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.kpi-column{display:grid;grid-template-rows:repeat(6,minmax(34px,auto));gap:4px;min-width:0}
 .kpi-section{color:#365b78;font-size:.78rem;font-weight:750;letter-spacing:.06em;padding:1px 4px 9px}
-.kpi{background:#fff;border-radius:11px;padding:5px 9px;min-width:0;box-shadow:0 2px 5px #17365009}
-.kpi .lbl{color:#526b80;font-size:.75rem;line-height:1.25}.kpi .val{color:#173650;font-size:1.13rem;font-weight:700;line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.kpi{background:#fff;border-radius:11px;padding:4px 9px;min-width:0;box-shadow:0 2px 5px #17365009}
+.kpi .lbl{color:#526b80;font-size:.78rem;line-height:1.2}.kpi .val{color:#173650;font-size:1.13rem;font-weight:700;line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .chart-heading{font-weight:750;color:#365b78;font-size:.8rem;letter-spacing:.06em;padding:3px 4px}
 [data-testid="stPlotlyChart"]{background:#fff;border-radius:19px;padding:8px 10px;box-shadow:0 3px 12px #1736500b}
 [data-testid="stCaptionContainer"]{color:#526b80;font-size:.75rem}
@@ -30,6 +30,31 @@ st.markdown('''<style>
 @media(max-height:850px) and (min-width:1001px){.block-container{padding-top:3.25rem}.hero{padding:8px 18px}.kpi-board section{padding:7px}.kpi-column{grid-template-rows:repeat(6,minmax(30px,auto));gap:4px}.kpi{padding:3px 7px}.kpi .val{font-size:1rem}.kpi .lbl{font-size:.7rem}.kpi-section{padding-bottom:5px}}
 @media(max-width:1000px){.kpi-board{grid-template-columns:1fr}}
 @media(max-width:550px){.block-container{padding:3rem .6rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-meta{gap:8px}}
+[data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] .selection-marker){gap:.4rem}
+.st-key-project_navigation{background:#e7eef6;border-radius:16px;padding:8px 12px;margin-top:8px}
+.st-key-project_navigation [data-testid="stWidgetLabel"] p{font-weight:600;color:#365b78;font-size:.82rem}
+.st-key-project_navigation button{border-radius:12px;min-height:38px;background:#fff;border-color:#dce6ef;color:#285b80}
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"] button[aria-checked="true"], [data-testid="stSegmentedControl"] button[data-selected="true"], [data-testid="stSegmentedControl"] button[aria-pressed="true"], [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"]{background:#dbe9f7!important;color:#173650!important;border-color:#b7cde3!important}
+
+/* Uniform vertical rhythm and aligned cards */
+.block-container{padding-top:3.5rem}
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"]{gap:10px}
+.hero{min-height:48px;box-sizing:border-box}
+.st-key-project_navigation{margin-top:0;padding:8px 12px 10px}
+.st-key-project_navigation [data-testid="stWidgetLabel"]{margin-bottom:6px}
+.kpi-board{margin:0;gap:12px}
+.kpi-board section{padding:9px}
+.kpi-section{padding:0 4px 10px;line-height:1.2}
+.kpi-column{grid-template-rows:repeat(6,44px);gap:6px}
+.kpi{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:3px 8px;box-sizing:border-box}
+.kpi .lbl{line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .val{line-height:1.1}
+.chart-heading{padding:0 4px;line-height:1.3}
+.st-key-chart_panel [data-testid="stColumn"]{background:#fff;border-radius:19px;padding:8px 10px;box-shadow:0 3px 12px #1736500b;min-width:0}
+.st-key-chart_panel [data-testid="stPlotlyChart"]{padding:0;box-shadow:none;background:transparent}
+.st-key-chart_panel [data-testid="stCaptionContainer"]{min-height:30px;padding:0 4px;line-height:1.3}
+[data-testid="stSegmentedControl"] button[aria-checked="true"], [data-testid="stSegmentedControl"] button[aria-pressed="true"]{color:#173650!important;background:#dbe9f7!important;border-color:#b7cde3!important}
+@media(max-height:850px) and (min-width:1001px){.block-container{padding-top:3.15rem}[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"]{gap:7px}.kpi-column{grid-template-rows:repeat(6,37px);gap:4px}.kpi{gap:3px}.kpi-section{padding-bottom:7px}.st-key-project_navigation{padding:5px 10px 7px}}
 </style>''',unsafe_allow_html=True)
 
 import os, hmac, html
@@ -74,14 +99,23 @@ if not files:
     st.warning('No hi ha captures CSV.'); st.stop()
 projects=sorted({p.name.split('_')[1] for p in files},key=int)
 hero_slot=st.empty()
-sel1,sel2,selection_info=st.columns([1,1.6,2.4],vertical_alignment="bottom")
-project=sel1.selectbox('Número de projecte',projects,format_func=lambda x:'P'+x)
-choices=[p for p in files if p.name.split('_')[1]==project][::-1]
-selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '))
-with selection_info:
-    st.caption(f'{len(projects)} projectes disponibles · {len(choices)} captures del projecte seleccionat')
+if st.session_state.get('project_picker') not in projects:
+    st.session_state.project_picker=projects[0]
+def move_project(step):
+    i=projects.index(st.session_state.project_picker)
+    st.session_state.project_picker=projects[max(0,min(len(projects)-1,i+step))]
+with st.container(key='project_navigation'):
+    prev,sel1,nxt,sel2,selection_info=st.columns([.45,1.8,.45,2.8,2.2],vertical_alignment="bottom")
+    current=projects.index(st.session_state.project_picker)
+    prev.button('‹',key='previous_project',help='Projecte anterior',on_click=move_project,args=(-1,),disabled=current==0,use_container_width=True)
+    project=sel1.selectbox('Projecte · cerca per número',projects,format_func=lambda x:'P'+x,key='project_picker')
+    nxt.button('›',key='next_project',help='Projecte següent',on_click=move_project,args=(1,),disabled=current==len(projects)-1,use_container_width=True)
+    choices=[p for p in files if p.name.split('_')[1]==project][::-1]
+    selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '),key='capture_'+project)
+    with selection_info:
+        st.caption(f'Projecte {current+1} de {len(projects)} · {len(choices)} captures')
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-hero_slot.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.5</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
+hero_slot.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.7</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -132,19 +166,19 @@ if not programs: programs={'Sense producció':0}
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
 
-def bar_chart(title, labels, values, unit='palets', height=235, sparse=1):
+def bar_chart(title, labels, values, unit='palets', height=195, sparse=1):
     fig=go.Figure()
     fig.add_bar(x=labels,y=values,marker_color=BLUE,marker_line_width=0,
                 hovertemplate='<b>%{x}</b><br>%{y:,.0f} '+unit+'<extra></extra>')
     upper=max(values or [0])
     fig.update_layout(title=dict(text=title,font=dict(size=16,color=DARK)),
-        height=height,margin=dict(l=8,r=8,t=38,b=30),
+        height=height,margin=dict(l=8,r=8,t=44,b=30),
         paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',
         bargap=.27,barcornerradius=5,showlegend=False,hovermode='closest',
         dragmode=False,clickmode='none',transition=dict(duration=0),
         font=dict(family='Arial, sans-serif',size=12,color='#536c80'),
         yaxis=dict(fixedrange=True,range=[0,max(1,upper*1.15)],rangemode='tozero',
-                   tickformat=',.0f',gridcolor='#e9eff5',zerolinecolor='#a7b8c8',
+                   dtick=1 if upper<=5 else None,tickformat=',.0f',gridcolor='#e9eff5',zerolinecolor='#a7b8c8',
                    title=None),
         xaxis=dict(fixedrange=True,type='category',tickmode='array',
                    tickvals=labels[::sparse],ticktext=labels[::sparse],
@@ -156,10 +190,12 @@ def summary(vals,interval):
     avg=sum(nonzero)/len(nonzero) if nonzero else 0
     st.caption(f'Total {fmt(sum(vals))} · Màx. {fmt(max(vals))} · Mitjana {avg:.1f}')
 
-st.markdown('<div class="chart-heading">PRODUCTION ANALYTICS</div>',unsafe_allow_html=True)
-view=st.segmented_control('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],default='Producció · hores / dies / mesos',label_visibility='collapsed') or 'Producció'
+chart_label,chart_selector=st.columns([1,3],vertical_alignment='center')
+chart_label.markdown('<div class="chart-heading">PRODUCTION ANALYTICS</div>',unsafe_allow_html=True)
+view=chart_selector.segmented_control('Gràfiques', ['Producció · hores / dies / mesos','Històric i procés · anys / bobines / programes'],default='Producció · hores / dies / mesos',label_visibility='collapsed') or 'Producció'
 if view.startswith('Producció'):
-    tab_h,tab_d,tab_m=st.columns(3)
+    with st.container(key="chart_panel"):
+        tab_h,tab_d,tab_m=st.columns(3,gap="small")
     with tab_h:
         bar_chart('Producció per hora',[f'{i:02d} h' for i in range(24)],hours,sparse=3)
         summary(hours,'hora')
@@ -170,7 +206,8 @@ if view.startswith('Producció'):
         bar_chart('Producció mensual',[str(i+1) for i in range(12)],months,sparse=1)
         summary(months,'mes')
 else:
-    tab_y,tab_r,tab_p=st.columns(3)
+    with st.container(key="chart_panel"):
+        tab_y,tab_r,tab_p=st.columns(3,gap="small")
     with tab_y:
         bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,unit='palets acumulats',sparse=1)
         st.caption('Acumulats circulars: màxim a la dreta, assignat a l’any de captura.')
@@ -187,7 +224,7 @@ else:
                         line=dict(color='#ffffff',width=2)),
             textinfo='percent',textposition='inside',pull=0,rotation=0,
             hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
-        fig.update_layout(height=235,title=dict(text="Producció per programa",font=dict(size=16,color=DARK)),margin=dict(l=8,r=8,t=38,b=10),
+        fig.update_layout(height=195,title=dict(text="Producció per programa",font=dict(size=16,color=DARK)),margin=dict(l=8,r=8,t=44,b=10),
             paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
             dragmode=False,clickmode='none',transition=dict(duration=0),
             showlegend=False,
