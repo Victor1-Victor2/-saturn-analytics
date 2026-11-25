@@ -68,7 +68,7 @@ st.markdown('''<style>
 .st-key-chart_panel [data-testid="stColumn"] [data-testid="stColumn"]{background:transparent;padding:0;box-shadow:none;border-radius:0}
 .chart-card-title{font-size:1rem;font-weight:700;color:#12385b;line-height:1.25;padding:4px 2px}
 .st-key-chart_panel [data-testid="stVerticalBlock"]{gap:3px}
-.chart-heading{padding:8px 4px 5px;line-height:1.4;margin:0}
+.chart-heading{text-align:center;padding:8px 4px 8px;line-height:1.4;margin:0}
 .st-key-mobile_charts{display:none!important}
 @media(max-width:760px){
 .st-key-chart_panel{display:none!important}
@@ -77,7 +77,9 @@ st.markdown('''<style>
 .kpi .lbl{white-space:normal;overflow:visible}
 .kpi-column{grid-template-rows:repeat(6,minmax(44px,auto))}
 }
-.monitor-track{height:3px;background:#e0eaf4;border-radius:8px;overflow:hidden}.monitor-track i{display:block;height:100%;background:#78a6cb;animation:monitor-progress 60s linear forwards}.monitor-kpi{animation:kpi-glow 5s ease-in-out infinite}@keyframes monitor-progress{from{width:0}to{width:100%}}@keyframes kpi-glow{0%,100%{background:white}45%,65%{background:#dcebf9;box-shadow:0 0 10px #a8c8e5}}@media(prefers-reduced-motion:reduce){.monitor-kpi{animation:none}}
+.monitor-track{height:3px;background:#e0eaf4;border-radius:8px;overflow:hidden}.monitor-track i{display:block;width:25%;height:100%;background:linear-gradient(90deg,transparent,#78a6cb,transparent);animation:monitor-progress 4s linear infinite}.monitor-kpi{animation:kpi-glow 5s ease-in-out infinite}@keyframes monitor-progress{from{transform:translateX(-100%)}to{transform:translateX(400%)}}@keyframes kpi-glow{0%,100%{background:white}45%,65%{background:#dcebf9;box-shadow:0 0 10px #a8c8e5}}@media(prefers-reduced-motion:reduce){.monitor-kpi{animation:none}}
+.st-key-project_navigation [data-testid="stDownloadButton"] button{background:#e3eef8;color:#285b80;border-color:#c5d9eb;width:100%}
+@media(prefers-reduced-motion:reduce){.monitor-track i{animation:none;width:100%}}
 </style>''',unsafe_allow_html=True)
 
 import os, hmac, html
@@ -122,6 +124,7 @@ if not files:
     st.warning('No hi ha captures CSV.'); st.stop()
 projects=sorted({p.name.split('_')[1] for p in files},key=int)
 hero_slot=st.empty()
+monitor_slot=st.empty()
 if st.session_state.get('project_picker') not in projects:
     st.session_state.project_picker=projects[0]
 def move_project(step):
@@ -154,7 +157,7 @@ else:
     elapsed=0
 
 with st.container(key='project_navigation'):
-    prev,sel1,nxt,sel2,selection_info=st.columns([.45,1.8,.45,2.8,2.2],vertical_alignment="bottom")
+    prev,sel1,nxt,sel2,selection_info,pdf_slot=st.columns([.45,1.8,.45,2.8,1.25,1.25],vertical_alignment="bottom")
     current=projects.index(st.session_state.project_picker)
     prev.button('‹',key='previous_project',help='Projecte anterior',on_click=move_project,args=(-1,),disabled=current==0,use_container_width=True)
     project=sel1.selectbox('Projecte · cerca per número',projects,format_func=lambda x:'P'+x,key='project_picker')
@@ -163,9 +166,9 @@ with st.container(key='project_navigation'):
     selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '),key='capture_'+project)
     with selection_info:
         st.button('Ⅱ Monitoring' if monitor else '▶ Monitoring',on_click=toggle_monitor,use_container_width=True)
-        if monitor: st.markdown(f'<div class="monitor-track"><i style="animation-delay:-{elapsed%60:.2f}s"></i></div>',unsafe_allow_html=True)
+if monitor: monitor_slot.markdown('<div class="monitor-track"><i></i></div>',unsafe_allow_html=True)
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-hero_slot.markdown(f'<div class="hero"><div class="hero-brand">RD37_4U · SATURN Analytics · V1.5.0</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
+hero_slot.markdown(f'<div class="hero"><div class="hero-brand">RD37_4U · SATURN Analytics · V1.5.1</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -258,14 +261,18 @@ def chart_header(key, first, second):
     button.button('⇄', key='switch_'+key, help='Mostra '+(first if alternate else second), on_click=flip_chart, args=(key,), use_container_width=True)
     return alternate
 
-def program_figure():
+def program_figure(mobile=False):
     top=[(k,v) for k,v in all_programs[:4] if v>0]
     total=sum(v for _,v in all_programs)
     fig=go.Figure()
     for i,(name,value) in enumerate(top):
-        x0=(i%2)*.5+.025; y0=.52 if i<2 else .02
-        fig.add_trace(go.Pie(labels=[name,'Altres'],values=[value,max(0,total-value)],hole=.73,sort=False,domain=dict(x=[x0,x0+.45],y=[y0,y0+.45]),marker=dict(colors=[BLUE,LIGHT]),textinfo='none',hovertemplate='%{label}: %{value}<extra></extra>'))
-        fig.add_annotation(x=x0+.225,y=y0+.225,text=f'<b>{fmt(value)}</b><br>{name} · {value/total:.0%}',showarrow=False,font=dict(size=10,color=DARK),xanchor='center',yanchor='middle')
+        if mobile:
+            x0=(i%2)*.5+.015; y0=.51 if i<2 else .01; dx=.47; dy=.48
+        else:
+            dx=1/max(1,len(top))-.012; dy=.68
+            x0=i/max(1,len(top))+.006; y0=.29 if i%2==0 else .03
+        fig.add_trace(go.Pie(labels=[name,'Altres'],values=[value,max(0,total-value)],hole=.78,sort=False,domain=dict(x=[x0,x0+dx],y=[y0,y0+dy]),marker=dict(colors=[BLUE,LIGHT]),textinfo='none',hovertemplate='%{label}: %{value}<extra></extra>'))
+        fig.add_annotation(x=x0+dx/2,y=y0+dy/2,text=f'<b>{fmt(value)}</b><br>{name} · {value/total:.0%}',showarrow=False,font=dict(size=12,color=DARK),xanchor='center',yanchor='middle')
     if not top: fig.add_annotation(x=.5,y=.5,text='Sense producció',showarrow=False)
     fig.update_layout(height=195,margin=dict(l=4,r=4,t=4,b=4),paper_bgcolor='rgba(0,0,0,0)',showlegend=False)
     return fig
@@ -307,7 +314,7 @@ mobile_specs=[
     ('Producció mensual',bar_chart('',[str(i+1) for i in range(12)],months,sparse=2,render=False),mobile_summary(months)),
     ('Producció acumulada anual',bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,sparse=2,render=False),'Acumulats circulars: màxim a la dreta.'),
     ('Palets entre canvis de bobina',bar_chart('Palets entre canvis de bobina',[str(i+1) for i in range(24)],rolls,sparse=4,render=False),mobile_summary(rolls)),
-    ('Producció per programa',program_figure(),' · '.join(f'{name}: {fmt(value)}' for name,value in programs.items()))]
+    ('Producció per programa',program_figure(mobile=True),' · '.join(f'{name}: {fmt(value)}' for name,value in programs.items()))]
 slides=[]
 for title,fig,detail in mobile_specs:
     fig.update_layout(height=240,autosize=True,hovermode=False)
@@ -321,12 +328,16 @@ with st.container(key='mobile_charts'):
 
 st.caption('Captures històriques: no són dades en directe. Els increments amb base absent o lectures antigues es tracten segons el lector de Windows; cal validar els gràfics amb els informes originals.')
 
-with st.container():
-    if st.button('Preparar PDF',key='prepare_pdf'):
-        st.session_state.pdf_snapshot=(project,capture,make_pdf(project,capture,kpis,mobile_specs,all_programs))
-    snapshot=st.session_state.get('pdf_snapshot')
-    if snapshot and snapshot[:2]==(project,capture):
-        st.download_button('↓ Download PDF',snapshot[2],file_name=f'RD37_4U_P{project}_{selected.stem.split("_",2)[2]}.pdf',mime='application/pdf')
+@st.cache_data(show_spinner=False, max_entries=64)
+def cached_pdf(project,capture,kpis,specs_json,programs):
+    specs=[(title,pio.from_json(fig),detail) for title,fig,detail in specs_json]
+    return make_pdf(project,capture,kpis,specs,programs)
+with pdf_slot:
+    try:
+        pdf_data=cached_pdf(project,capture,kpis,[(title,pio.to_json(fig),detail) for title,fig,detail in mobile_specs],all_programs)
+        st.download_button('↓ PDF',pdf_data,file_name=f'RD37_4U_P{project}_{selected.stem.split("_",2)[2]}.pdf',mime='application/pdf',use_container_width=True,on_click='ignore')
+    except Exception as exc:
+        st.error('PDF no disponible')
 
 @st.fragment(run_every=1 if monitor else None)
 def monitoring_clock():
