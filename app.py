@@ -1,6 +1,5 @@
 import math
 import time
-import random
 from report_pdf import make_pdf
 from datetime import datetime
 from pathlib import Path
@@ -77,7 +76,7 @@ st.markdown('''<style>
 .kpi .lbl{white-space:normal;overflow:visible}
 .kpi-column{grid-template-rows:repeat(6,minmax(44px,auto))}
 }
-.monitor-track{height:3px;background:#e0eaf4;border-radius:8px;overflow:hidden}.monitor-track i{display:block;width:25%;height:100%;background:linear-gradient(90deg,transparent,#78a6cb,transparent);animation:monitor-progress 4s linear infinite}.monitor-kpi{animation:kpi-glow 5s ease-in-out infinite}@keyframes monitor-progress{from{transform:translateX(-100%)}to{transform:translateX(400%)}}@keyframes kpi-glow{0%,100%{background:white}45%,65%{background:#dcebf9;box-shadow:0 0 10px #a8c8e5}}@media(prefers-reduced-motion:reduce){.monitor-kpi{animation:none}}
+.monitor-track{height:3px;background:#e0eaf4;border-radius:8px;overflow:hidden}.monitor-track i{display:block;width:25%;height:100%;background:linear-gradient(90deg,transparent,#78a6cb,transparent);animation:monitor-progress 4s linear infinite}.kpi.monitor-kpi{background:#c1d8ed;box-shadow:0 0 0 1px #91b5d4 inset;animation:kpi-glow .25s ease-out both}@keyframes monitor-progress{from{transform:translateX(-100%)}to{transform:translateX(400%)}}@keyframes kpi-glow{from{background:white}to{background:#c1d8ed}}@media(prefers-reduced-motion:reduce){.monitor-kpi{animation:none}}
 .st-key-project_navigation [data-testid="stDownloadButton"] button{background:#e3eef8;color:#285b80;border-color:#c5d9eb;width:100%}
 @media(prefers-reduced-motion:reduce){.monitor-track i{animation:none;width:100%}}
 </style>''',unsafe_allow_html=True)
@@ -135,6 +134,7 @@ def toggle_monitor():
     st.session_state.monitor_start = time.monotonic()
     st.session_state.monitor_phase = -1
     st.session_state.monitor_highlight = ''
+    st.session_state.monitor_tick = -1
 
 monitor=st.session_state.get('monitor',False)
 if monitor:
@@ -148,11 +148,10 @@ if monitor:
         for key in ('chart_left','chart_middle','chart_right'):
             st.session_state[key]=bool(phase%2)
         st.session_state.monitor_phase=phase
-    tick=int(elapsed//5)
-    if tick!=st.session_state.get('monitor_tick',-1):
-        candidates=['1.1','1.3','2.1','2.3','3.3','7.1','5.4','4.2','4.3','4.4']
-        st.session_state.monitor_highlight=random.choice([x for x in candidates if x!=st.session_state.get('monitor_highlight')])
-        st.session_state.monitor_tick=tick
+    tick=int(elapsed//1.25)
+    position=tick%48
+    st.session_state.monitor_highlight=f'{position//6+1}.{position%6+1}'
+    st.session_state.monitor_tick=tick
 else:
     elapsed=0
 
@@ -168,7 +167,7 @@ with st.container(key='project_navigation'):
         st.button('Ⅱ Monitoring' if monitor else '▶ Monitoring',on_click=toggle_monitor,use_container_width=True)
 if monitor: monitor_slot.markdown('<div class="monitor-track"><i></i></div>',unsafe_allow_html=True)
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-hero_slot.markdown(f'<div class="hero"><div class="hero-brand">RD37_4U · SATURN Analytics · V1.5.1</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
+hero_slot.markdown(f'<div class="hero"><div class="hero-brand">RD37_4U · SATURN Analytics · V1.5.2</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -339,10 +338,10 @@ with pdf_slot:
     except Exception as exc:
         st.error('PDF no disponible')
 
-@st.fragment(run_every=1 if monitor else None)
+@st.fragment(run_every=0.25 if monitor else None)
 def monitoring_clock():
     if monitor:
         now=time.monotonic()-st.session_state.monitor_start
-        if int(now//5)!=st.session_state.get('monitor_tick') or int(now//30)!=st.session_state.get('monitor_phase'):
+        if int(now//1.25)!=st.session_state.get('monitor_tick') or int(now//30)!=st.session_state.get('monitor_phase'):
             st.rerun()
 monitoring_clock()

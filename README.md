@@ -21,3 +21,5 @@ V1.4.9: tres gràfiques independents en PC; fins a 760 px, una gràfica tàctil 
 V1.5.1: RD37_4U, Monitoring (60 s projecte, 30 s gràfics, ressaltat KPI cada 5 s), TOP 4 donuts, PDF A4 horitzontal de dues pàgines. El PDF es prepara i després es descarrega. Llindar provisional de canvis curts: menys de 3 palets positius. Les dades són captures, no telemetria en directe.
 
 V1.5.1: PDF directe a la navegació, animació de 4 s a tota amplada, TOP 4 en ziga-zaga al PC i 2x2 al mòbil.
+
+V1.5.2: Monitoring amb recorregut ordenat dels 48 KPI, 1,25 s per casella; canvi de gràfiques als 30 s i de projecte als 60 s. Blau més fosc.
