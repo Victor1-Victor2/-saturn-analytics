@@ -15,3 +15,7 @@ V1.4.8: navegació anterior/següent, selector cercable, captura per projecte i 
 V1.4.8: ritme vertical uniforme, KPI amb alçada fixa i gràfiques amb resums integrats.
 
 V1.4.8: tres botons independents de canvi de gràfica; sense selector general.
+
+V1.4.9: tres gràfiques independents en PC; fins a 760 px, una gràfica tàctil amb sis vistes circulars.
+
+V1.5.0: RD37_4U, Monitoring (60 s projecte, 30 s gràfics, ressaltat KPI cada 5 s), TOP 4 donuts, PDF A4 horitzontal de dues pàgines. El PDF es prepara i després es descarrega. Llindar provisional de canvis curts: menys de 3 palets positius. Les dades són captures, no telemetria en directe.

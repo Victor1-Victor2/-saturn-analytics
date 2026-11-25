@@ -1,4 +1,7 @@
 import math
+import time
+import random
+from report_pdf import make_pdf
 from datetime import datetime
 from pathlib import Path
 import csv
@@ -7,6 +10,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+import streamlit.components.v1 as components
+import plotly.io as pio
+from plotly.offline import get_plotlyjs
+import json
 
 st.set_page_config(page_title='SATURN Analytics', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 st.markdown('''<style>
@@ -61,6 +68,16 @@ st.markdown('''<style>
 .st-key-chart_panel [data-testid="stColumn"] [data-testid="stColumn"]{background:transparent;padding:0;box-shadow:none;border-radius:0}
 .chart-card-title{font-size:1rem;font-weight:700;color:#12385b;line-height:1.25;padding:4px 2px}
 .st-key-chart_panel [data-testid="stVerticalBlock"]{gap:3px}
+.chart-heading{padding:8px 4px 5px;line-height:1.4;margin:0}
+.st-key-mobile_charts{display:none!important}
+@media(max-width:760px){
+.st-key-chart_panel{display:none!important}
+.st-key-mobile_charts{display:block!important;width:100%;min-width:0}
+.st-key-mobile_charts iframe{border-radius:19px;width:100%}
+.kpi .lbl{white-space:normal;overflow:visible}
+.kpi-column{grid-template-rows:repeat(6,minmax(44px,auto))}
+}
+.monitor-track{height:3px;background:#e0eaf4;border-radius:8px;overflow:hidden}.monitor-track i{display:block;height:100%;background:#78a6cb;animation:monitor-progress 60s linear forwards}.monitor-kpi{animation:kpi-glow 5s ease-in-out infinite}@keyframes monitor-progress{from{width:0}to{width:100%}}@keyframes kpi-glow{0%,100%{background:white}45%,65%{background:#dcebf9;box-shadow:0 0 10px #a8c8e5}}@media(prefers-reduced-motion:reduce){.monitor-kpi{animation:none}}
 </style>''',unsafe_allow_html=True)
 
 import os, hmac, html
@@ -110,6 +127,32 @@ if st.session_state.get('project_picker') not in projects:
 def move_project(step):
     i=projects.index(st.session_state.project_picker)
     st.session_state.project_picker=projects[max(0,min(len(projects)-1,i+step))]
+def toggle_monitor():
+    st.session_state.monitor = not st.session_state.get('monitor',False)
+    st.session_state.monitor_start = time.monotonic()
+    st.session_state.monitor_phase = -1
+    st.session_state.monitor_highlight = ''
+
+monitor=st.session_state.get('monitor',False)
+if monitor:
+    elapsed=time.monotonic()-st.session_state.monitor_start
+    phase=int(elapsed//30)
+    previous=st.session_state.get('monitor_phase',-1)
+    if phase!=previous:
+        if phase//2>max(0,previous)//2:
+            step=phase//2-max(0,previous)//2
+            st.session_state.project_picker=projects[(projects.index(st.session_state.project_picker)+step)%len(projects)]
+        for key in ('chart_left','chart_middle','chart_right'):
+            st.session_state[key]=bool(phase%2)
+        st.session_state.monitor_phase=phase
+    tick=int(elapsed//5)
+    if tick!=st.session_state.get('monitor_tick',-1):
+        candidates=['1.1','1.3','2.1','2.3','3.3','7.1','5.4','4.2','4.3','4.4']
+        st.session_state.monitor_highlight=random.choice([x for x in candidates if x!=st.session_state.get('monitor_highlight')])
+        st.session_state.monitor_tick=tick
+else:
+    elapsed=0
+
 with st.container(key='project_navigation'):
     prev,sel1,nxt,sel2,selection_info=st.columns([.45,1.8,.45,2.8,2.2],vertical_alignment="bottom")
     current=projects.index(st.session_state.project_picker)
@@ -119,9 +162,10 @@ with st.container(key='project_navigation'):
     choices=[p for p in files if p.name.split('_')[1]==project][::-1]
     selected=sel2.selectbox('Data i hora de captura',choices,format_func=lambda p:p.stem.split('_',2)[2].replace('_',' · '),key='capture_'+project)
     with selection_info:
-        st.caption(f'Projecte {current+1} de {len(projects)} · {len(choices)} captures')
+        st.button('Ⅱ Monitoring' if monitor else '▶ Monitoring',on_click=toggle_monitor,use_container_width=True)
+        if monitor: st.markdown(f'<div class="monitor-track"><i style="animation-delay:-{elapsed%60:.2f}s"></i></div>',unsafe_allow_html=True)
 capture = selected.stem.split('_',2)[2].replace('_',' · ')
-hero_slot.markdown(f'<div class="hero"><div class="hero-brand">SATURN Analytics · V1.4.8</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
+hero_slot.markdown(f'<div class="hero"><div class="hero-brand">RD37_4U · SATURN Analytics · V1.5.0</div><div class="hero-meta"><span class="hero-project">P{html.escape(project)}</span><span class="hero-date">{html.escape(capture)}</span></div></div>',unsafe_allow_html=True)
 with selected.open(encoding='utf-8-sig',newline='') as f:
     rows=list(csv.DictReader(f))
 byname={r['Nombre']:r['Valor'] for r in rows}
@@ -142,7 +186,8 @@ for start, heading in [(0, 'PRODUCTION & PERFORMANCE'), (24, 'MACHINE & PROCESS'
         for label,val in kpis[offset:offset+6]:
             if label[:3] not in {"1.1", "5.1", "5.4", "3.5", "6.1"} and val.lstrip("-").isdigit():
                 val = f"{int(val):,}".replace(",", ".")
-            cards.append(f'<div class="kpi"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
+            highlight=' monitor-kpi' if monitor and label[:3]==st.session_state.get('monitor_highlight') else ''
+            cards.append(f'<div class="kpi{highlight}"><div class="lbl">{html.escape(label)}</div><div class="val">{html.escape(val)}</div></div>')
         columns.append('<div class="kpi-column">'+''.join(cards)+'</div>')
     sections.append(f'<section><div class="kpi-section">{html.escape(heading)}</div><div class="kpis">'+''.join(columns)+'</div></section>')
 st.markdown('<div class="kpi-board">'+''.join(sections)+'</div>',unsafe_allow_html=True)
@@ -172,9 +217,9 @@ if not programs: programs={'Sense producció':0}
 def fmt(n):
     return f'{n:,.0f}'.replace(',','.')
 
-def bar_chart(title, labels, values, unit='palets', height=195, sparse=1):
+def bar_chart(title, labels, values, unit='palets', height=195, sparse=1, render=True):
     fig=go.Figure()
-    fig.add_bar(x=labels,y=values,marker_color=BLUE,marker_line_width=0,
+    fig.add_bar(x=labels,y=values,marker_color=('#548bb9' if 'bobina' not in title else ['#d9b17d' if 0<v<3 else BLUE for v in values]),marker_line_width=0,
                 hovertemplate='<b>%{x}</b><br>%{y:,.0f} '+unit+'<extra></extra>')
     upper=max(values or [0])
     fig.update_layout(
@@ -189,7 +234,14 @@ def bar_chart(title, labels, values, unit='palets', height=195, sparse=1):
         xaxis=dict(fixedrange=True,type='category',tickmode='array',
                    tickvals=labels[::sparse],ticktext=labels[::sparse],
                    showgrid=False,title=None))
-    st.plotly_chart(fig,use_container_width=True,config=CHART_CONFIG)
+    if 'anual' in title:
+        fig.data=[]
+        fig.add_scatter(x=labels,y=values,mode='lines+markers',line=dict(color=BLUE,width=2),fill='tozeroy',fillcolor='rgba(84,139,185,.18)')
+    if 'dia' in title or 'bobina' in title:
+        valid=[v for v in values if v>0]
+        if valid: fig.add_hline(y=sum(valid)/len(valid),line_dash='dot',line_color='#487fae')
+    if render: st.plotly_chart(fig,use_container_width=True,config=CHART_CONFIG)
+    return fig
 
 def summary(vals,interval):
     nonzero=[x for x in vals if x>0]
@@ -205,6 +257,18 @@ def chart_header(key, first, second):
     title.markdown(f'<div class="chart-card-title">{html.escape(second if alternate else first)}</div>', unsafe_allow_html=True)
     button.button('⇄', key='switch_'+key, help='Mostra '+(first if alternate else second), on_click=flip_chart, args=(key,), use_container_width=True)
     return alternate
+
+def program_figure():
+    top=[(k,v) for k,v in all_programs[:4] if v>0]
+    total=sum(v for _,v in all_programs)
+    fig=go.Figure()
+    for i,(name,value) in enumerate(top):
+        x0=(i%2)*.5+.025; y0=.52 if i<2 else .02
+        fig.add_trace(go.Pie(labels=[name,'Altres'],values=[value,max(0,total-value)],hole=.73,sort=False,domain=dict(x=[x0,x0+.45],y=[y0,y0+.45]),marker=dict(colors=[BLUE,LIGHT]),textinfo='none',hovertemplate='%{label}: %{value}<extra></extra>'))
+        fig.add_annotation(x=x0+.225,y=y0+.225,text=f'<b>{fmt(value)}</b><br>{name} · {value/total:.0%}',showarrow=False,font=dict(size=10,color=DARK),xanchor='center',yanchor='middle')
+    if not top: fig.add_annotation(x=.5,y=.5,text='Sense producció',showarrow=False)
+    fig.update_layout(height=195,margin=dict(l=4,r=4,t=4,b=4),paper_bgcolor='rgba(0,0,0,0)',showlegend=False)
+    return fig
 
 st.markdown('<div class="chart-heading">PRODUCTION ANALYTICS</div>',unsafe_allow_html=True)
 with st.container(key="chart_panel"):
@@ -225,24 +289,49 @@ with st.container(key="chart_panel"):
             summary(days,'dia')
     with right:
         if chart_header('chart_right', 'Producció mensual', 'Producció per programa'):
-            labels=list(programs)
-            vals=list(programs.values())
-            fig=go.Figure(go.Pie(labels=labels,values=vals,hole=.64,
-                sort=False,direction='clockwise',
-                marker=dict(colors=['#487fae','#78a6cb','#a5c5df','#c8dced','#e6edf4'],
-                            line=dict(color='#ffffff',width=2)),
-                textinfo='percent',textposition='inside',pull=0,rotation=0,
-                hovertemplate='<b>%{label}</b><br>%{value:,.0f} palets · %{percent}<extra></extra>'))
-            fig.update_layout(height=195,margin=dict(l=8,r=8,t=10,b=10),
-                paper_bgcolor='rgba(0,0,0,0)',font=dict(color=DARK),
-                dragmode=False,clickmode='none',transition=dict(duration=0),
-                showlegend=False,
-                annotations=[dict(text=f'<b>{fmt(sum(vals))}</b><br>palets',
-                                  x=.5,y=.5,font=dict(size=13,color=DARK),showarrow=False)])
+            fig=program_figure()
             st.plotly_chart(fig,use_container_width=True,config=CHART_CONFIG)
             st.caption(' · '.join(f'{name}: {fmt(value)}' for name,value in programs.items()))
         else:
             bar_chart('Producció mensual',[str(i+1) for i in range(12)],months,sparse=1)
             summary(months,'mes')
 
+def mobile_summary(vals):
+    nonzero=[v for v in vals if v>0]
+    avg=sum(nonzero)/len(nonzero) if nonzero else 0
+    return f'Total {fmt(sum(vals))} · Màx. {fmt(max(vals))} · Mitjana {avg:.1f}'
+
+mobile_specs=[
+    ('Producció per hora',bar_chart('',[f'{i:02d} h' for i in range(24)],hours,sparse=4,render=False),mobile_summary(hours)),
+    ('Producció per dia',bar_chart('Producció per dia',[f'Dia {i+1}' for i in range(len(days))],days,sparse=5,render=False),mobile_summary(days)),
+    ('Producció mensual',bar_chart('',[str(i+1) for i in range(12)],months,sparse=2,render=False),mobile_summary(months)),
+    ('Producció acumulada anual',bar_chart('Producció acumulada anual',[str(y) for y in range(year-9,year+1)],annual,sparse=2,render=False),'Acumulats circulars: màxim a la dreta.'),
+    ('Palets entre canvis de bobina',bar_chart('Palets entre canvis de bobina',[str(i+1) for i in range(24)],rolls,sparse=4,render=False),mobile_summary(rolls)),
+    ('Producció per programa',program_figure(),' · '.join(f'{name}: {fmt(value)}' for name,value in programs.items()))]
+slides=[]
+for title,fig,detail in mobile_specs:
+    fig.update_layout(height=240,autosize=True,hovermode=False)
+    slides.append(dict(title=title,figure=json.loads(pio.to_json(fig)),detail=detail))
+payload=json.dumps(slides,ensure_ascii=True).replace('<','\\u003c')
+mobile_html="""<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#173650}#card{background:white;border-radius:19px;padding:12px;cursor:pointer;outline-offset:-3px;touch-action:pan-y}header{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700;font-size:15px}#next{background:#e3eef8;color:#285b80;border-radius:10px;padding:8px;white-space:nowrap;font-size:12px}#plot{width:100%;height:240px;pointer-events:none}#detail{font-size:11px;color:#526b80;line-height:1.4}#hint{font-size:11px;color:#487fae;text-align:center;margin-top:8px}
+</style></head><body><div id="card" role="button" tabindex="0" aria-label="Mostra la gràfica següent"><header><span id="title"></span><span id="next"></span></header><div id="plot"></div><div id="detail"></div><div id="hint">Toca la gràfica per passar a la següent</div></div><script>"""+get_plotlyjs()+"""</script><script>const slides="""+payload+""";let i="""+str(int(elapsed//10)%6 if monitor else 0)+""";const card=document.getElementById('card');const plot=document.getElementById('plot');function draw(){const s=slides[i];document.getElementById('title').textContent=s.title;document.getElementById('next').textContent=(i+1)+' / '+slides.length+'  ›';document.getElementById('detail').textContent=s.detail;Plotly.react(plot,s.figure.data,s.figure.layout,{staticPlot:true,responsive:true,displayModeBar:false});}function advance(){i=(i+1)%slides.length;draw();}card.addEventListener('click',advance);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();advance();}});draw();new ResizeObserver(()=>{if(plot.clientWidth>0)Plotly.Plots.resize(plot);}).observe(card);</script></body></html>"""
+with st.container(key='mobile_charts'):
+    components.html(mobile_html,height=350,scrolling=False)
+
 st.caption('Captures històriques: no són dades en directe. Els increments amb base absent o lectures antigues es tracten segons el lector de Windows; cal validar els gràfics amb els informes originals.')
+
+with st.container():
+    if st.button('Preparar PDF',key='prepare_pdf'):
+        st.session_state.pdf_snapshot=(project,capture,make_pdf(project,capture,kpis,mobile_specs,all_programs))
+    snapshot=st.session_state.get('pdf_snapshot')
+    if snapshot and snapshot[:2]==(project,capture):
+        st.download_button('↓ Download PDF',snapshot[2],file_name=f'RD37_4U_P{project}_{selected.stem.split("_",2)[2]}.pdf',mime='application/pdf')
+
+@st.fragment(run_every=1 if monitor else None)
+def monitoring_clock():
+    if monitor:
+        now=time.monotonic()-st.session_state.monitor_start
+        if int(now//5)!=st.session_state.get('monitor_tick') or int(now//30)!=st.session_state.get('monitor_phase'):
+            st.rerun()
+monitoring_clock()
